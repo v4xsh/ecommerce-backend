@@ -21,45 +21,36 @@ public class PaymentWebhookController {
 
     @PostMapping("/payment")
     public void handlePaymentWebhook(@RequestBody Map<String, Object> payload) {
-        // Parse Razorpay Payload to find our internal Order ID
-        // Note: In a real scenario, we parse "payload.payment.entity.notes.order_id"
-        // For this assignment, we will assume we get the OrderID directly or search by the Razorpay Order ID.
+        System.out.println("Webhook Payload Received: " + payload);
 
-        System.out.println("Webhook Received: " + payload);
-
-        // LOGIC: Check event type
         String event = (String) payload.get("event");
 
         if ("payment.captured".equals(event)) {
-            // Extract nested data (Safe parsing for demo)
             try {
-                Map<String, Object> payloadMap = (Map<String, Object>) payload.get("payload");
-                Map<String, Object> paymentMap = (Map<String, Object>) payloadMap.get("payment");
-                Map<String, Object> entityMap = (Map<String, Object>) paymentMap.get("entity");
+                // Extract payment details from the payload structure
+                Map<String, Object> payloadData = (Map<String, Object>) payload.get("payload");
+                Map<String, Object> paymentData = (Map<String, Object>) payloadData.get("payment");
+                Map<String, Object> entityData = (Map<String, Object>) paymentData.get("entity");
 
-                String razorpayOrderId = (String) entityMap.get("order_id");
+                String razorpayOrderId = (String) entityData.get("order_id");
 
-                // Find our local payment/order
-                // Since we don't have the direct link in this generic payload without "notes",
-                // We will update the MOST RECENT Order for the sake of the Assignment Demo
-                // OR (Better) we find the payment by the razorpayOrderId
-
-                // Update Payment Status
-                // Payment payment = paymentRepository.findByPaymentId(razorpayOrderId);
-                // (Simulating update for the assignment flow):
-
-                System.out.println("Payment Successful for Razorpay Order: " + razorpayOrderId);
+                // Log successful capture for monitoring
+                System.out.println("Payment Captured for Razorpay Order ID: " + razorpayOrderId);
 
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("Error parsing webhook payload: " + e.getMessage());
             }
         }
     }
 
-    // BONUS ENDPOINT: Simulate Webhook (Since we can't easily trigger real Razorpay webhooks from localhost)
+    /**
+     * Simulation endpoint to manually trigger payment success for development/demo purposes.
+     */
     @PostMapping("/simulate-success")
     public String simulateSuccess(@RequestParam String orderId) {
-        Order order = orderRepository.findById(orderId).orElseThrow();
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
         order.setStatus("PAID");
         orderRepository.save(order);
 
@@ -69,6 +60,6 @@ public class PaymentWebhookController {
             paymentRepository.save(payment);
         }
 
-        return "Order " + orderId + " marked as PAID";
+        return "Order " + orderId + " successfully marked as PAID";
     }
 }
